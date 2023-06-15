@@ -59,3 +59,5 @@ export default defineConfig({
   ],
 });
 ```
+
+> 注意：自定义上传的时候，可能存在上传成功，但是没有使用上 cdn 链接的情况。原因在于 `html` 里本地的资源链接，是通过 `String.prototyep.includes` API 来和 cdn 的链接进行模糊匹配的。所以确保 cdn 的链接包含了本地资源的引用，即可正常使用。
