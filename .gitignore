@@ -68,3 +68,6 @@ typings/
 
 # IDE
 .idea
+
+# build
+dist
