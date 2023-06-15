@@ -5,20 +5,20 @@ import mime from "mime-types";
 import { basename, join, resolve } from "path";
 import qiniu from "qiniu";
 var ViteStaticCDN = (options) => {
-  const { accessKey, secretKey, bucket } = options.qiniuConfig;
-  const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
-  const qiniuOptions = {
-    scope: bucket,
-    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}'
-  };
-  const putPolicy = new qiniu.rs.PutPolicy(qiniuOptions);
-  const uploadToken = putPolicy.uploadToken(mac);
-  const config = new qiniu.conf.Config();
-  const formUploader = new qiniu.form_up.FormUploader(config);
-  const putExtra = new qiniu.form_up.PutExtra();
-  const uploadSingleFile = async (localFilePath) => {
-    const filename = basename(localFilePath);
-    putExtra.mimeType = mime.lookup(filename) || "application/octet-stream";
+  const uploadToQiniu = (props) => {
+    const { localFilePath, filename, mimeType } = props;
+    const { accessKey, secretKey, bucket } = options.qiniuConfig;
+    const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
+    const qiniuOptions = {
+      scope: bucket,
+      returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}'
+    };
+    const putPolicy = new qiniu.rs.PutPolicy(qiniuOptions);
+    const uploadToken = putPolicy.uploadToken(mac);
+    const config = new qiniu.conf.Config();
+    const formUploader = new qiniu.form_up.FormUploader(config);
+    const putExtra = new qiniu.form_up.PutExtra();
+    putExtra.mimeType = mimeType;
     let key = join(options.basePath || "/", filename);
     if (key.startsWith("/"))
       key = key.slice(1);
@@ -38,9 +38,16 @@ var ViteStaticCDN = (options) => {
       });
     });
   };
+  const uploadSingleFile = async (localFilePath) => {
+    const filename = basename(localFilePath);
+    const mimeType = mime.lookup(filename) || "application/octet-stream";
+    return options.qiniuConfig ? uploadToQiniu({ localFilePath, filename, mimeType }) : options.customUpload({ localFilePath, filename, mimeType });
+  };
   return {
     name: "vite-static-cdn",
     async writeBundle({ dir }, bundle) {
+      if (!options.qiniuConfig && !options.customUpload)
+        throw new Error("\u8BF7\u914D\u7F6E\u4E0A\u4F20\u65B9\u6CD5\uFF01");
       const assets = [];
       const htmlPath = resolve(dir, "index.html");
       for (const path in bundle) {

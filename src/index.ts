@@ -4,7 +4,7 @@ import mime from "mime-types";
 import { basename, join, resolve } from "path";
 import qiniu from "qiniu";
 import { Plugin } from "rollup";
-import { Options } from "./types";
+import { Options, UploadProps } from "./types";
 
 /**
  * 把打包后的静态资源自动上传到CDN
@@ -12,22 +12,22 @@ import { Options } from "./types";
  * @returns {Plugin}
  */
 const ViteStaticCDN = (options: Options): Plugin => {
-  const { accessKey, secretKey, bucket } = options.qiniuConfig;
-  const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
-  const qiniuOptions = {
-    scope: bucket,
-    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
-  };
+  const uploadToQiniu = (props: UploadProps): Promise<string> => {
+    const { localFilePath, filename, mimeType } = props;
+    const { accessKey, secretKey, bucket } = options.qiniuConfig!;
+    const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);
+    const qiniuOptions = {
+      scope: bucket,
+      returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}',
+    };
 
-  const putPolicy = new qiniu.rs.PutPolicy(qiniuOptions);
-  const uploadToken = putPolicy.uploadToken(mac);
-  const config = new qiniu.conf.Config();
-  const formUploader = new qiniu.form_up.FormUploader(config);
-  const putExtra = new qiniu.form_up.PutExtra();
+    const putPolicy = new qiniu.rs.PutPolicy(qiniuOptions);
+    const uploadToken = putPolicy.uploadToken(mac);
+    const config = new qiniu.conf.Config();
+    const formUploader = new qiniu.form_up.FormUploader(config);
+    const putExtra = new qiniu.form_up.PutExtra();
+    putExtra.mimeType = mimeType;
 
-  const uploadSingleFile = async (localFilePath: string): Promise<string> => {
-    const filename = basename(localFilePath);
-    putExtra.mimeType = mime.lookup(filename) || "application/octet-stream";
     let key = join(options.basePath || "/", filename);
     if (key.startsWith("/")) key = key.slice(1);
 
@@ -49,9 +49,19 @@ const ViteStaticCDN = (options: Options): Plugin => {
     });
   };
 
+  const uploadSingleFile = async (localFilePath: string): Promise<string> => {
+    const filename = basename(localFilePath);
+    const mimeType = mime.lookup(filename) || "application/octet-stream";
+    return options.qiniuConfig
+      ? uploadToQiniu({ localFilePath, filename, mimeType })
+      : options.customUpload!({ localFilePath, filename, mimeType });
+  };
+
   return {
     name: "vite-static-cdn",
     async writeBundle({ dir }, bundle) {
+      if (!options.qiniuConfig && !options.customUpload) throw new Error("请配置上传方法！");
+
       const assets: { source: string; cdn: string }[] = [];
       const htmlPath = resolve(dir!, "index.html");
 

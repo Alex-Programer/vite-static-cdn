@@ -41,20 +41,20 @@ var import_mime_types = __toESM(require("mime-types"), 1);
 var import_path = require("path");
 var import_qiniu = __toESM(require("qiniu"), 1);
 var ViteStaticCDN = (options) => {
-  const { accessKey, secretKey, bucket } = options.qiniuConfig;
-  const mac = new import_qiniu.default.auth.digest.Mac(accessKey, secretKey);
-  const qiniuOptions = {
-    scope: bucket,
-    returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}'
-  };
-  const putPolicy = new import_qiniu.default.rs.PutPolicy(qiniuOptions);
-  const uploadToken = putPolicy.uploadToken(mac);
-  const config = new import_qiniu.default.conf.Config();
-  const formUploader = new import_qiniu.default.form_up.FormUploader(config);
-  const putExtra = new import_qiniu.default.form_up.PutExtra();
-  const uploadSingleFile = async (localFilePath) => {
-    const filename = (0, import_path.basename)(localFilePath);
-    putExtra.mimeType = import_mime_types.default.lookup(filename) || "application/octet-stream";
+  const uploadToQiniu = (props) => {
+    const { localFilePath, filename, mimeType } = props;
+    const { accessKey, secretKey, bucket } = options.qiniuConfig;
+    const mac = new import_qiniu.default.auth.digest.Mac(accessKey, secretKey);
+    const qiniuOptions = {
+      scope: bucket,
+      returnBody: '{"key":"$(key)","hash":"$(etag)","fsize":$(fsize),"bucket":"$(bucket)","name":"$(x:name)"}'
+    };
+    const putPolicy = new import_qiniu.default.rs.PutPolicy(qiniuOptions);
+    const uploadToken = putPolicy.uploadToken(mac);
+    const config = new import_qiniu.default.conf.Config();
+    const formUploader = new import_qiniu.default.form_up.FormUploader(config);
+    const putExtra = new import_qiniu.default.form_up.PutExtra();
+    putExtra.mimeType = mimeType;
     let key = (0, import_path.join)(options.basePath || "/", filename);
     if (key.startsWith("/"))
       key = key.slice(1);
@@ -74,9 +74,16 @@ var ViteStaticCDN = (options) => {
       });
     });
   };
+  const uploadSingleFile = async (localFilePath) => {
+    const filename = (0, import_path.basename)(localFilePath);
+    const mimeType = import_mime_types.default.lookup(filename) || "application/octet-stream";
+    return options.qiniuConfig ? uploadToQiniu({ localFilePath, filename, mimeType }) : options.customUpload({ localFilePath, filename, mimeType });
+  };
   return {
     name: "vite-static-cdn",
     async writeBundle({ dir }, bundle) {
+      if (!options.qiniuConfig && !options.customUpload)
+        throw new Error("\u8BF7\u914D\u7F6E\u4E0A\u4F20\u65B9\u6CD5\uFF01");
       const assets = [];
       const htmlPath = (0, import_path.resolve)(dir, "index.html");
       for (const path in bundle) {
