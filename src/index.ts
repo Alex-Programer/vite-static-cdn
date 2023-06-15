@@ -13,6 +13,7 @@ import { Options, UploadProps } from "./types";
  */
 const ViteStaticCDN = (options: Options): Plugin => {
   const uploadToQiniu = (props: UploadProps): Promise<string> => {
+    if (!options.host) throw new Error("请配置七牛云的空间域名！");
     const { localFilePath, filename, mimeType } = props;
     const { accessKey, secretKey, bucket } = options.qiniuConfig!;
     const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);

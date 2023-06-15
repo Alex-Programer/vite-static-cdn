@@ -49,7 +49,6 @@ export default defineConfig({
   plugins: [
     Inspect(),
     ViteStaticCDN({
-      host: "http://xxx",
       async customUpload({ localFilePath, filename, mimeType }) {
         // 上传成功后，必须返回 Promise<string> 数据类型来执行后续逻辑
 

@@ -6,6 +6,8 @@ import { basename, join, resolve } from "path";
 import qiniu from "qiniu";
 var ViteStaticCDN = (options) => {
   const uploadToQiniu = (props) => {
+    if (!options.host)
+      throw new Error("\u8BF7\u914D\u7F6E\u4E03\u725B\u4E91\u7684\u7A7A\u95F4\u57DF\u540D\uFF01");
     const { localFilePath, filename, mimeType } = props;
     const { accessKey, secretKey, bucket } = options.qiniuConfig;
     const mac = new qiniu.auth.digest.Mac(accessKey, secretKey);

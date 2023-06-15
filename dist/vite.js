@@ -1,6 +1,6 @@
 import {
   src_default
-} from "./chunk-4CVR7274.js";
+} from "./chunk-DRCFSDZT.js";
 
 // src/vite.ts
 var vite_default = src_default;
