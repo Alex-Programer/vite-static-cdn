@@ -6,6 +6,12 @@ import qiniu from "qiniu";
 import { Plugin } from "rollup";
 import { Options, UploadProps } from "./types";
 
+function extractHashFromFilePath(filePath: string) {
+  const regex = /-(\w+)\.js$/;
+  const match = filePath.match(regex);
+  return match && match.length ? match[1] : null;
+}
+
 /**
  * 把打包后的静态资源自动上传到CDN
  * @param {Options} options 插件配置
@@ -63,6 +69,7 @@ const ViteStaticCDN = (options: Options): Plugin => {
     async writeBundle({ dir }, bundle) {
       if (!options.qiniuConfig && !options.customUpload) throw new Error("请配置上传方法！");
 
+      const hash: string[] = [];
       const assets: { source: string; cdn: string }[] = [];
       const htmlPath = resolve(dir!, "index.html");
 
@@ -74,9 +81,12 @@ const ViteStaticCDN = (options: Options): Plugin => {
           case "asset":
           case "chunk":
             try {
+              const fileHash = extractHashFromFilePath(file.fileName);
+              fileHash && hash.push(fileHash);
               const localFilePath = join(dir!, file.fileName);
               const cdn = await uploadSingleFile(localFilePath);
               assets.push({ source: file.fileName, cdn });
+              console.log(`成功将 ${file.fileName} 上传到 ${cdn}`);
             } catch (error) {
               console.error(error);
               console.error(`文件上传失败：${file.fileName}`);
@@ -122,8 +132,16 @@ const ViteStaticCDN = (options: Options): Plugin => {
         }
       }
 
+      const meta = document.createElement("meta");
+      meta.setAttribute("name", "hash");
+      meta.setAttribute("content", hash.join(","));
+      document.head.append(meta);
+
       const newHtml = dom.serialize();
       await writeFile(htmlPath, newHtml, "utf-8");
+
+      const hashFile = resolve(dir!, "hash");
+      await writeFile(hashFile, hash.join(","), "utf-8");
     },
   };
 };

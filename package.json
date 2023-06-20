@@ -1,7 +1,7 @@
 {
   "name": "vite-static-cdn",
   "type": "module",
-  "version": "0.0.3",
+  "version": "0.0.4",
   "packageManager": "pnpm@8.6.0",
   "description": "自动上传静态资源到cdn服务器",
   "license": "MIT",
